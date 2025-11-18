@@ -1,23 +1,22 @@
 {
   "name": "homebridge-fermax-blue",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Homebridge platform plugin that bridges Fermax Blue / DuoxMe doorbells into HomeKit with doorbell, lock, and video feed.",
-  "main": "homebridge-fermax-blue/src/index.js",
+  "main": "src/index.js",
   "type": "commonjs",
   "files": [
-    "homebridge-fermax-blue/src",
-    "homebridge-fermax-blue/config.schema.json",
-    "homebridge-fermax-blue/README.md",
-    "homebridge-fermax-blue/LICENSE",
-    "homebridge-fermax-blue/__tests__",
-    "homebridge-fermax-blue/jest.config.js",
-    "homebridge-fermax-blue/verify-install.js",
+    "src",
     "config.schema.json",
+    "README.md",
+    "LICENSE",
+    "__tests__",
+    "jest.config.js",
+    "verify-install.js",
     "postinstall.js"
   ],
   "scripts": {
-    "test": "jest --config homebridge-fermax-blue/jest.config.js",
-    "setup": "node homebridge-fermax-blue/src/setup/cli.js",
+    "test": "jest --config jest.config.js",
+    "setup": "node src/setup/cli.js",
     "postinstall": "node postinstall.js"
   },
   "keywords": [
