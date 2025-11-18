@@ -11,6 +11,7 @@
     "homebridge-fermax-blue/LICENSE",
     "homebridge-fermax-blue/__tests__",
     "homebridge-fermax-blue/jest.config.js",
+    "homebridge-fermax-blue/verify-install.js",
     "config.schema.json",
     "postinstall.js"
   ],

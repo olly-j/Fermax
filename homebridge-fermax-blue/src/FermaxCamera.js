@@ -40,7 +40,6 @@ function tokenizeArgs(input) {
 
 class FermaxCamera {
   constructor(platform, deviceId, accessory) {
-    super();
     this.platform = platform;
     this.deviceId = deviceId;
     this.accessory = accessory;

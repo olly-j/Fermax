@@ -10,45 +10,67 @@
 const fs = require('fs');
 const path = require('path');
 
-// Determine if we're in the installed package (node_modules) or source repo
-const isInstalled = __dirname.includes('node_modules');
-const packageJsonPath = path.join(__dirname, 'package.json');
+// Find the source schema file - check multiple possible locations
+const possibleSources = [
+  path.join(__dirname, 'homebridge-fermax-blue', 'config.schema.json'),
+  path.join(__dirname, 'config.schema.json'),
+];
 
-// Find the source schema file
-let sourceSchema;
-if (isInstalled) {
-  // In node_modules, schema should be at package root
-  sourceSchema = path.join(__dirname, 'homebridge-fermax-blue', 'config.schema.json');
-  // Fallback: check if it's already at root
-  if (!fs.existsSync(sourceSchema)) {
-    sourceSchema = path.join(__dirname, 'config.schema.json');
+let sourceSchema = null;
+for (const possiblePath of possibleSources) {
+  if (fs.existsSync(possiblePath)) {
+    sourceSchema = possiblePath;
+    break;
   }
-} else {
-  // In source repo
-  sourceSchema = path.join(__dirname, 'homebridge-fermax-blue', 'config.schema.json');
+}
+
+if (!sourceSchema) {
+  console.error('✗ config.schema.json not found in any expected location');
+  console.error('  Checked:', possibleSources.join(', '));
+  process.exit(1);
 }
 
 const rootSchema = path.join(__dirname, 'config.schema.json');
 
 // Copy schema to package root (where Homebridge UI looks for it)
-if (fs.existsSync(sourceSchema)) {
-  try {
-    // Always ensure schema is at package root
-    if (sourceSchema !== rootSchema) {
-      fs.copyFileSync(sourceSchema, rootSchema);
-    }
-    
-    // Verify the schema is valid JSON
-    const schemaContent = fs.readFileSync(rootSchema, 'utf8');
-    JSON.parse(schemaContent); // Will throw if invalid
-    
-    console.log('✓ config.schema.json is ready at package root for Homebridge UI');
-  } catch (error) {
-    console.error('✗ Failed to setup config.schema.json:', error.message);
-    process.exit(1);
+try {
+  // Always copy to ensure it's at the root, even if it already exists
+  fs.copyFileSync(sourceSchema, rootSchema);
+  
+  // Verify the schema is valid JSON and has required fields
+  const schemaContent = fs.readFileSync(rootSchema, 'utf8');
+  const schema = JSON.parse(schemaContent);
+  
+  // Validate required fields
+  if (!schema.pluginAlias) {
+    throw new Error('config.schema.json missing pluginAlias field');
   }
-} else {
-  console.warn('⚠ Source config.schema.json not found. Expected at:', sourceSchema);
-  console.warn('⚠ Homebridge UI configuration may not work properly.');
+  if (!schema.pluginType) {
+    throw new Error('config.schema.json missing pluginType field');
+  }
+  if (!schema.schema) {
+    throw new Error('config.schema.json missing schema field');
+  }
+  
+  // Verify pluginAlias matches platform name
+  const packageJsonPath = path.join(__dirname, 'package.json');
+  if (fs.existsSync(packageJsonPath)) {
+    const pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+    if (pkg.homebridge && pkg.homebridge.platforms && pkg.homebridge.platforms[0]) {
+      const expectedPlatform = pkg.homebridge.platforms[0].platform;
+      if (schema.pluginAlias !== expectedPlatform) {
+        console.warn(`⚠ Warning: pluginAlias "${schema.pluginAlias}" doesn't match platform "${expectedPlatform}"`);
+        console.warn('  This may cause Homebridge UI to not detect the schema correctly.');
+      }
+    }
+  }
+  
+  console.log(`✓ config.schema.json ready at package root (pluginAlias: ${schema.pluginAlias})`);
+} catch (error) {
+  console.error('✗ Failed to setup config.schema.json:', error.message);
+  if (error instanceof SyntaxError) {
+    console.error('  Invalid JSON in schema file');
+  }
+  process.exit(1);
 }
 

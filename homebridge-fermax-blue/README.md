@@ -139,22 +139,40 @@ For end-to-end validation:
 
 #### Configuration Issues
 - **"Plugin alias could not be determined" or "This plugin must be configured manually"** → This means Homebridge UI can't find the `config.schema.json` file. **Solution:**
-  1. Verify the schema file exists:
-     ```bash
-     ls -la /var/lib/homebridge/node_modules/homebridge-fermax-blue/config.schema.json
-     ```
-  2. If missing, manually copy it:
-     ```bash
-     cd /var/lib/homebridge/node_modules/homebridge-fermax-blue
-     cp homebridge-fermax-blue/config.schema.json config.schema.json
-     ```
-  3. Or reinstall to trigger the postinstall script:
-     ```bash
-     cd /var/lib/homebridge
-     npm uninstall homebridge-fermax-blue
-     npm install git+https://github.com/olly-j/Fermax.git
-     ```
-  4. Restart Homebridge and try again.
+  
+  **Step 1: Verify installation**
+  ```bash
+  cd /var/lib/homebridge/node_modules/homebridge-fermax-blue
+  node verify-install.js
+  ```
+  
+  **Step 2: If schema is missing, manually fix:**
+  ```bash
+  cd /var/lib/homebridge/node_modules/homebridge-fermax-blue
+  # Copy schema to root
+  cp homebridge-fermax-blue/config.schema.json config.schema.json
+  # Verify it's correct
+  cat config.schema.json | grep pluginAlias
+  # Should show: "pluginAlias": "FermaxBluePlatform"
+  ```
+  
+  **Step 3: Restart Homebridge completely:**
+  ```bash
+  # Via systemd
+  sudo systemctl restart homebridge
+  # Or via Homebridge UI: Status → Restart
+  ```
+  
+  **Step 4: Clear browser cache and reload Homebridge UI**
+  
+  **Step 5: If still not working, reinstall:**
+  ```bash
+  cd /var/lib/homebridge
+  npm uninstall homebridge-fermax-blue
+  npm install git+https://github.com/olly-j/Fermax.git
+  # Check postinstall ran successfully
+  # Restart Homebridge
+  ```
 - **Auth errors** → Re-run the setup wizard and make sure MFA is disabled in the Fermax app. Verify your username/password are correct.
 - **Schema still not loading** → Check Homebridge logs for postinstall script errors. The schema must be at `/var/lib/homebridge/node_modules/homebridge-fermax-blue/config.schema.json` (same directory as `package.json`).
 
