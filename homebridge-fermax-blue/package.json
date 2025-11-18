@@ -1,0 +1,56 @@
+{
+  "name": "homebridge-fermax-blue",
+  "version": "0.1.0",
+  "description": "Homebridge platform plugin that exposes Fermax Blue / DuoxMe doorbells as HomeKit video doorbells with lock control.",
+  "main": "src/index.js",
+  "type": "commonjs",
+  "files": [
+    "src",
+    "config.schema.json",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "jest",
+    "setup": "node src/setup/cli.js"
+  },
+  "keywords": [
+    "homebridge-plugin",
+    "fermax",
+    "doorbell",
+    "homekit",
+    "duox"
+  ],
+  "author": "Oliver Jeffers",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/oliverjeffers/Fermax.git",
+    "directory": "homebridge-fermax-blue"
+  },
+  "bugs": {
+    "url": "https://github.com/oliverjeffers/Fermax/issues"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "homebridge": ">=1.6.0"
+  },
+  "homebridge": {
+    "platforms": [
+      {
+        "platform": "FermaxBluePlatform",
+        "plugin_map": {
+          "plugin_name": "homebridge-fermax-blue"
+        }
+      }
+    ]
+  },
+  "dependencies": {
+    "hap-nodejs": "^1.1.0",
+    "homebridge": "^1.8.0",
+    "push-receiver": "^2.1.1"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  }
+}

@@ -1,0 +1,70 @@
+{
+  "pluginAlias": "FermaxBluePlatform",
+  "pluginType": "platform",
+  "singular": true,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "title": "Accessory Name",
+        "type": "string",
+        "default": "Fermax Doorbell"
+      },
+      "username": {
+        "title": "Fermax Username",
+        "type": "string",
+        "required": true
+      },
+      "password": {
+        "title": "Fermax Password",
+        "type": "string",
+        "required": true
+      },
+      "senderId": {
+        "title": "Firebase Sender ID",
+        "type": "string",
+        "description": "project_number from Fermax Blue google-services.json",
+        "required": true
+      },
+      "deviceId": {
+        "title": "Device ID",
+        "type": "string",
+        "description": "Optional deviceId if multiple monitors exist"
+      },
+      "deviceTag": {
+        "title": "Device Tag",
+        "type": "string",
+        "description": "Alternate selection by human-readable tag"
+      },
+      "accessDoorKey": {
+        "title": "Door Key",
+        "type": "string",
+        "description": "Key inside accessDoorMap (ZERO, ONE, etc.)"
+      },
+      "doorIndex": {
+        "title": "Door Index",
+        "type": "integer",
+        "default": 0,
+        "description": "Fallback index if key is not provided"
+      },
+      "unlockResetSeconds": {
+        "title": "Unlock Reset Seconds",
+        "type": "integer",
+        "default": 8,
+        "description": "Lock state resets to secured after this many seconds"
+      },
+      "clientId": {
+        "title": "Custom OAuth Client ID",
+        "type": "string",
+        "description": "Optional override for Fermax OAuth client id"
+      },
+      "clientSecret": {
+        "title": "Custom OAuth Client Secret",
+        "type": "string",
+        "description": "Optional override for Fermax OAuth client secret"
+      }
+    },
+    "required": ["username", "password", "senderId"]
+  }
+}
+
