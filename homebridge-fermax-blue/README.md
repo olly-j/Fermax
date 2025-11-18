@@ -13,12 +13,66 @@
 
 ### Requirements
 1. Fermax Blue credentials (username + password) that already control your VEO-XS WiFi (DUOX Plus) monitor.
-2. **Firebase Sender ID** (required) - Extract from the Fermax Blue Android app (see instructions below)
+2. **Firebase Sender ID** (required) - Extract from the Fermax Blue app (iOS or Android - see instructions below)
 3. Node.js 18+ and Homebridge 1.6+ running on the same host as this plugin.
 
 #### Extracting Firebase Sender ID
 
 The **Sender ID** (also called `project_number`) is required for push notifications. Here's how to extract it:
+
+### For iOS Users
+
+**Method 1: Using iMazing or Similar Tool (Easiest)**
+1. Download [iMazing](https://imazing.com/) (free trial available) or similar iOS management tool
+2. Connect your iPhone to your computer
+3. In iMazing, select your device → Apps → Fermax Blue
+4. Click "Extract App" to save the `.ipa` file
+5. Rename the `.ipa` file to `.zip` and extract it:
+   ```bash
+   unzip BlueFermax.ipa -d BlueFermax
+   ```
+6. Navigate to `BlueFermax/Payload/BlueFermax.app/`
+7. Find and open `GoogleService-Info.plist` (it's a text/XML file)
+8. Look for `GCM_SENDER_ID` or `project_number`:
+   ```xml
+   <key>GCM_SENDER_ID</key>
+   <string>123456789012</string>
+   ```
+   Or:
+   ```xml
+   <key>project_number</key>
+   <string>123456789012</string>
+   ```
+   This number is your Sender ID.
+
+**Method 2: From iTunes/Finder Backup**
+1. Create a backup of your iPhone in Finder (macOS Catalina+) or iTunes
+2. Use [iBackup Viewer](https://www.imactools.com/iphonebackupviewer/) (free) to browse the backup
+3. Navigate to: Apps → Fermax Blue → App Domain → GoogleService-Info.plist
+4. Extract the `GCM_SENDER_ID` or `project_number` value
+
+**Method 3: Using ipatool (Command Line)**
+If you have access to the App Store API or a developer account:
+```bash
+# Install ipatool (requires macOS)
+brew install ipatool
+
+# Download the IPA
+ipatool download --bundle-id com.fermax.bluefermax
+
+# Extract and find the plist
+unzip *.ipa -d extracted
+cat extracted/Payload/*.app/GoogleService-Info.plist | grep -A 1 GCM_SENDER_ID
+```
+
+**Method 4: From Jailbroken Device (Advanced)**
+If your iPhone is jailbroken:
+1. Use Filza or similar file manager
+2. Navigate to `/var/containers/Bundle/Application/[App UUID]/BlueFermax.app/`
+3. Open `GoogleService-Info.plist`
+4. Extract the `GCM_SENDER_ID` or `project_number` value
+
+### For Android Users
 
 **Method 1: From Android APK (Recommended)**
 1. Download the Fermax Blue APK file to your computer
@@ -42,7 +96,7 @@ apktool d BlueFermax.apk
 cat BlueFermax/res/values/google-services.json | grep project_number
 ```
 
-**Note:** You only need the `project_number` (Sender ID) for basic functionality. The other Firebase fields (`projectId`, `apiKey`, etc.) are not required for this plugin.
+**Note:** You only need the `project_number` or `GCM_SENDER_ID` (Sender ID) for basic functionality. The other Firebase fields (`projectId`, `apiKey`, etc.) are not required for this plugin. The Sender ID is typically a 10-12 digit number.
 
 ### Installation
 ```bash

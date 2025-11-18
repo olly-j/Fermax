@@ -33,14 +33,14 @@
         "title": "Step 2: Firebase Cloud Messaging (FCM) Settings",
         "type": "string",
         "default": "",
-        "description": "Fermax uses Firebase Cloud Messaging to send doorbell ring notifications. Extract these values from the Fermax Blue Android app.",
+        "description": "Fermax uses Firebase Cloud Messaging to send doorbell ring notifications. Extract the Sender ID from the Fermax Blue app (iOS or Android).",
         "readonly": true
       },
       "senderId": {
         "title": "Firebase Sender ID (Project Number)",
         "type": "string",
         "placeholder": "123456789012",
-        "description": "Extract from the Fermax Blue Android APK: unzip the APK, find google-services.json, and copy the 'project_number' field. This is typically a 12-digit number. See README for detailed extraction steps.",
+        "description": "Extract from Fermax Blue app:\n• iOS: Find GoogleService-Info.plist, look for GCM_SENDER_ID or project_number\n• Android: Unzip APK, find google-services.json, copy project_number field\nThis is typically a 10-12 digit number. See README for detailed extraction steps for both iOS and Android.",
         "required": true,
         "pattern": "^[0-9]{10,12}$"
       },
