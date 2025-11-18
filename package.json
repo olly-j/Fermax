@@ -10,11 +10,14 @@
     "homebridge-fermax-blue/README.md",
     "homebridge-fermax-blue/LICENSE",
     "homebridge-fermax-blue/__tests__",
-    "homebridge-fermax-blue/jest.config.js"
+    "homebridge-fermax-blue/jest.config.js",
+    "config.schema.json",
+    "postinstall.js"
   ],
   "scripts": {
     "test": "jest --config homebridge-fermax-blue/jest.config.js",
-    "setup": "node homebridge-fermax-blue/src/setup/cli.js"
+    "setup": "node homebridge-fermax-blue/src/setup/cli.js",
+    "postinstall": "node postinstall.js"
   },
   "keywords": [
     "homebridge-plugin",

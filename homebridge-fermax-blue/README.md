@@ -13,19 +13,36 @@
 
 ### Requirements
 1. Fermax Blue credentials (username + password) that already control your VEO-XS WiFi (DUOX Plus) monitor.
-2. Firebase Cloud Messaging project parameters from the Fermax Blue Android app:
-   - `senderId` (a.k.a `project_number`)
-   - `projectId`
-   - `mobilesdk_app_id`
-   - `current_key`
-   - Android package name (`com.fermax.bluefermax`)
-
-   Extract these from the `google-services.json` file inside the Fermax Blue APK:
-   ```bash
-   apktool d BlueFermax.apk
-   cat BlueFermax/res/values/google-services.json
-   ```
+2. **Firebase Sender ID** (required) - Extract from the Fermax Blue Android app (see instructions below)
 3. Node.js 18+ and Homebridge 1.6+ running on the same host as this plugin.
+
+#### Extracting Firebase Sender ID
+
+The **Sender ID** (also called `project_number`) is required for push notifications. Here's how to extract it:
+
+**Method 1: From Android APK (Recommended)**
+1. Download the Fermax Blue APK file to your computer
+2. Extract the APK (it's just a ZIP file):
+   ```bash
+   unzip BlueFermax.apk -d BlueFermax
+   ```
+3. Find and open `BlueFermax/res/values/google-services.json`
+4. Look for the `project_number` field - this is your Sender ID
+   ```json
+   {
+     "project_info": {
+       "project_number": "123456789012"  ← This is your Sender ID
+     }
+   }
+   ```
+
+**Method 2: Using apktool (if you have it installed)**
+```bash
+apktool d BlueFermax.apk
+cat BlueFermax/res/values/google-services.json | grep project_number
+```
+
+**Note:** You only need the `project_number` (Sender ID) for basic functionality. The other Firebase fields (`projectId`, `apiKey`, etc.) are not required for this plugin.
 
 ### Installation
 ```bash
@@ -33,12 +50,48 @@ cd ~/homebridge
 npm install homebridge-fermax-blue
 ```
 
-### Guided configuration
+### Configuration
+
+#### Option 1: Using Homebridge UI (Recommended)
+
+The plugin includes a step-by-step configuration wizard in the Homebridge UI:
+
+1. **Open Homebridge UI** (usually at `http://homebridge-ip:8581`)
+2. **Go to Plugins** → Find "homebridge-fermax-blue" → Click **Settings** (gear icon)
+3. **Follow the guided steps:**
+
+   **Step 1: Fermax Account Credentials**
+   - Enter your Fermax Blue / DuoxMe email and password
+   - These are the same credentials you use in the mobile app
+
+   **Step 2: Firebase Sender ID**
+   - Extract the `project_number` from the Fermax Blue Android app's `google-services.json`
+   - See "Extracting Firebase Credentials" section below for detailed instructions
+   - This is typically a 12-digit number
+
+   **Step 3: Device Selection (Optional)**
+   - If you have multiple Fermax monitors, specify the device ID or tag
+   - Leave blank to use the first available device
+   - You can find device IDs in the plugin logs after first run
+
+   **Step 4: Video Streaming (Optional but Recommended)**
+   - Enter your camera stream URL (RTSP or HLS)
+   - See "Video feed options" section below for details
+   - Without this, you'll only get snapshots in notifications
+
+   **Step 5: Advanced Settings (Optional)**
+   - Most users can skip these
+   - Adjust lock reset timeout, FFmpeg options, etc. as needed
+
+4. **Click Save** and restart Homebridge
+
+#### Option 2: Manual Configuration (CLI)
+
 Run the interactive wizard to produce a valid JSON snippet:
 ```bash
 npx homebridge-fermax-blue setup
 ```
-Paste the generated `fermax-homebridge-config.json` block into Homebridge `config.json`, or use the Homebridge UI (Config UI X) which surfaces the same schema.
+Paste the generated `fermax-homebridge-config.json` block into Homebridge `config.json`.
 
 Example config:
 ```json
@@ -83,10 +136,23 @@ For end-to-end validation:
 4. Tap “Unlock” in Apple Home → door strike should activate and state resets after the configured timeout.
 
 ### Troubleshooting
-- **Auth errors** → re-run the setup wizard and make sure MFA is disabled in the Fermax app.
-- **No doorbell events** → double-check that the `senderId` and `projectId` came from the exact Fermax Blue app version installed on your handset.
-- **Snapshot unavailable** → Fermax only stores a photo when “Photocaller” is enabled; turn that option on in the Blue app or provide `cameraSnapshotUrl`.
-- **Black video feed** → confirm `cameraStreamUrl` is reachable via `ffmpeg -i <url> -f null -`. Enable `cameraForceTranscode` for HLS inputs or add RTSP flags via `cameraStreamOptions`.
+
+#### Configuration Issues
+- **"This plugin must be configured manually" message** → This usually means Homebridge UI can't find the `config.schema.json` file. **Solution:** Reinstall the plugin to trigger the postinstall script that copies the schema to the correct location:
+  ```bash
+  cd /var/lib/homebridge
+  npm uninstall homebridge-fermax-blue
+  npm install git+https://github.com/olly-j/Fermax.git
+  ```
+  Then restart Homebridge. The UI should now show the step-by-step configuration form.
+- **Auth errors** → Re-run the setup wizard and make sure MFA is disabled in the Fermax app. Verify your username/password are correct.
+- **Schema still not loading** → Manually verify the schema file exists at `/var/lib/homebridge/node_modules/homebridge-fermax-blue/config.schema.json`. If missing, the postinstall script may have failed - check Homebridge logs.
+
+#### Functionality Issues
+- **No doorbell events** → Double-check that the `senderId` came from the exact Fermax Blue app version installed on your handset. Check Homebridge logs for push notification errors.
+- **Snapshot unavailable** → Fermax only stores a photo when "Photocaller" is enabled; turn that option on in the Blue app or provide `cameraSnapshotUrl`.
+- **Black video feed** → Confirm `cameraStreamUrl` is reachable via `ffmpeg -i <url> -f null -`. Enable `cameraForceTranscode` for HLS inputs or add RTSP flags via `cameraStreamOptions`.
+- **Plugin not appearing** → Check Homebridge logs for errors. Ensure Node.js version is 18+ and all dependencies installed correctly.
 
 ### Acknowledgements
 - Fermax API insights from [cvc90/Fermax-Blue-Intercom](https://github.com/cvc90/Fermax-Blue-Intercom)
