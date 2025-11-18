@@ -47,6 +47,41 @@
         "default": 0,
         "description": "Fallback index if key is not provided"
       },
+      "cameraStreamUrl": {
+        "title": "Camera Stream URL",
+        "type": "string",
+        "description": "FFmpeg-compatible input (RTSP/HLS) for Fermax video"
+      },
+      "cameraSnapshotUrl": {
+        "title": "Snapshot URL",
+        "type": "string",
+        "description": "Optional still image endpoint; falls back to Fermax photocaller"
+      },
+      "cameraForceTranscode": {
+        "title": "Force Transcode (libx264)",
+        "type": "boolean",
+        "default": false
+      },
+      "cameraStreamOptions": {
+        "title": "Extra FFmpeg Input Args",
+        "type": "string",
+        "description": "Advanced: additional arguments such as '-rtsp_transport tcp'"
+      },
+      "cameraMaxBitrate": {
+        "title": "Max Bitrate (kbps)",
+        "type": "integer",
+        "default": 2000
+      },
+      "ffmpegPath": {
+        "title": "FFmpeg Binary",
+        "type": "string",
+        "description": "Override auto-detected ffmpeg path"
+      },
+      "cameraDebug": {
+        "title": "Verbose FFmpeg Logs",
+        "type": "boolean",
+        "default": false
+      },
       "unlockResetSeconds": {
         "title": "Unlock Reset Seconds",
         "type": "integer",

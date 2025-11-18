@@ -4,7 +4,7 @@ This repo hosts the work-in-progress Fermax Blue Bridge stack:
 
 - `fermax_blue/`: Core Python client library that wraps the Fermax Blue / DuoxMe cloud API (auth, discovery, history polling, door control, optional video URLs).
 - `custom_components/fermax_blue/`: Home Assistant custom integration built on the core library.
-- Optional Homebridge plugin (spec only for now) that can reuse the same core library.
+- `homebridge-fermax-blue/`: Installable Homebridge platform plugin (`npm install git+https://github.com/olly-j/Fermax.git`) that exposes doorbell, lock, and video feed directly to Apple Home.
 
 ### High-level goals
 

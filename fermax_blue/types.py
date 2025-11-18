@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Literal, Optional
+from typing import Dict, Literal, Optional
 
 DeviceType = Literal["monitor", "door"]
 
@@ -16,7 +16,7 @@ class Device:
     device_id: str
     name: str
     type: DeviceType
-    access_id: Optional[str] = None
+    access_id: Optional[Dict[str, int]] = None
 
 
 @dataclass(slots=True)

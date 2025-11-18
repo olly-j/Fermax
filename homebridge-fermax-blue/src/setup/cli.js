@@ -26,6 +26,15 @@ async function run() {
   const accessDoorKey = (
     await rl.question('Door key (ZERO by default, optional): ')
   ).trim();
+  const cameraStreamUrl = (
+    await rl.question('Camera stream URL (RTSP/HLS, optional): ')
+  ).trim();
+  const cameraSnapshotUrl = (
+    await rl.question('Snapshot URL (optional): ')
+  ).trim();
+  const forceTranscodeAnswer = (
+    await rl.question('Force libx264 transcode? (y/N): ')
+  ).trim();
 
   await rl.close();
 
@@ -37,6 +46,9 @@ async function run() {
     senderId,
     deviceId: deviceId || undefined,
     accessDoorKey: accessDoorKey || undefined,
+    cameraStreamUrl: cameraStreamUrl || undefined,
+    cameraSnapshotUrl: cameraSnapshotUrl || undefined,
+    cameraForceTranscode: /^y(es)?$/i.test(forceTranscodeAnswer),
     unlockResetSeconds: 8,
   };
 
