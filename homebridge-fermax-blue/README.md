@@ -138,15 +138,25 @@ For end-to-end validation:
 ### Troubleshooting
 
 #### Configuration Issues
-- **"This plugin must be configured manually" message** → This usually means Homebridge UI can't find the `config.schema.json` file. **Solution:** Reinstall the plugin to trigger the postinstall script that copies the schema to the correct location:
-  ```bash
-  cd /var/lib/homebridge
-  npm uninstall homebridge-fermax-blue
-  npm install git+https://github.com/olly-j/Fermax.git
-  ```
-  Then restart Homebridge. The UI should now show the step-by-step configuration form.
+- **"Plugin alias could not be determined" or "This plugin must be configured manually"** → This means Homebridge UI can't find the `config.schema.json` file. **Solution:**
+  1. Verify the schema file exists:
+     ```bash
+     ls -la /var/lib/homebridge/node_modules/homebridge-fermax-blue/config.schema.json
+     ```
+  2. If missing, manually copy it:
+     ```bash
+     cd /var/lib/homebridge/node_modules/homebridge-fermax-blue
+     cp homebridge-fermax-blue/config.schema.json config.schema.json
+     ```
+  3. Or reinstall to trigger the postinstall script:
+     ```bash
+     cd /var/lib/homebridge
+     npm uninstall homebridge-fermax-blue
+     npm install git+https://github.com/olly-j/Fermax.git
+     ```
+  4. Restart Homebridge and try again.
 - **Auth errors** → Re-run the setup wizard and make sure MFA is disabled in the Fermax app. Verify your username/password are correct.
-- **Schema still not loading** → Manually verify the schema file exists at `/var/lib/homebridge/node_modules/homebridge-fermax-blue/config.schema.json`. If missing, the postinstall script may have failed - check Homebridge logs.
+- **Schema still not loading** → Check Homebridge logs for postinstall script errors. The schema must be at `/var/lib/homebridge/node_modules/homebridge-fermax-blue/config.schema.json` (same directory as `package.json`).
 
 #### Functionality Issues
 - **No doorbell events** → Double-check that the `senderId` came from the exact Fermax Blue app version installed on your handset. Check Homebridge logs for push notification errors.
