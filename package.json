@@ -9,8 +9,6 @@
     "config.schema.json",
     "README.md",
     "LICENSE",
-    "__tests__",
-    "jest.config.js",
     "verify-install.js",
     "postinstall.js"
   ],
