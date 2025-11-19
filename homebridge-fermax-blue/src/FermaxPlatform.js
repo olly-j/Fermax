@@ -62,8 +62,17 @@ class FermaxBluePlatform {
       logger: this.log,
     });
 
-    await this.syncDevices();
-    await this.startPushListener();
+    await this.retryInitialize();
+  }
+
+  async retryInitialize(delay = 5000) {
+    try {
+      await this.syncDevices();
+      await this.startPushListener();
+    } catch (error) {
+      this.log.warn(`Fermax initialization failed (retrying in ${delay / 1000}s):`, error.message);
+      setTimeout(() => this.retryInitialize(Math.min(delay * 2, 300000)), delay);
+    }
   }
 
   async syncDevices() {

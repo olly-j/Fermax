@@ -75,7 +75,7 @@ class FermaxClient {
     payload.set('username', this.username);
     payload.set('password', this.password);
 
-    const response = await fetch(OAUTH_URL, {
+    const response = await this._fetchWithRetry(OAUTH_URL, {
       method: 'POST',
       headers: {
         Authorization: `Basic ${Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64')}`,
@@ -107,7 +107,7 @@ class FermaxClient {
     payload.set('grant_type', 'refresh_token');
     payload.set('refresh_token', this.token.refreshToken);
 
-    const response = await fetch(OAUTH_URL, {
+    const response = await this._fetchWithRetry(OAUTH_URL, {
       method: 'POST',
       headers: {
         Authorization: `Basic ${Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64')}`,
@@ -145,7 +145,7 @@ class FermaxClient {
       });
     }
 
-    const response = await fetch(url, {
+    const response = await this._fetchWithRetry(url, {
       method,
       headers: {
         Authorization: `Bearer ${this.token.accessToken}`,
@@ -166,6 +166,30 @@ class FermaxClient {
       throw new Error(`Fermax request failed (${response.status}): ${message}`);
     }
     return response;
+  }
+
+  async _fetchWithRetry(url, options, retries = 3) {
+    // Simple exponential backoff
+    const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    
+    for (let i = 0; i < retries; i++) {
+      try {
+        // Using default global fetch
+        return await fetch(url, options);
+      } catch (error) {
+        const isNetworkError = error.cause?.code === 'ETIMEDOUT' || 
+                               error.cause?.code === 'ECONNREFUSED' ||
+                               error.message.includes('fetch failed');
+                               
+        if (isNetworkError && i < retries - 1) {
+          const delay = 1000 * Math.pow(2, i); // 1s, 2s, 4s
+          this.logger?.debug?.(`Fermax network error, retrying in ${delay}ms...`, error.message);
+          await wait(delay);
+          continue;
+        }
+        throw error;
+      }
+    }
   }
 
   async getPairings() {
