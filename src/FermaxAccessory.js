@@ -33,6 +33,7 @@ class FermaxAccessory {
       .setCharacteristic(Characteristic.Name, `${this.context.name} Door`)
       .setCharacteristic(Characteristic.LockCurrentState, Characteristic.LockCurrentState.SECURED)
       .setCharacteristic(Characteristic.LockTargetState, Characteristic.LockTargetState.SECURED)
+      .getCharacteristic(Characteristic.LockTargetState)
       .onSet(async (value) => this.handleLockTarget(value));
 
     if (!this.camera) {
