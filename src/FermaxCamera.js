@@ -70,6 +70,19 @@ class FermaxCamera {
       },
     };
 
+    // Remove any existing camera controllers to prevent duplicates on re-initialization
+    if (accessory.controllers) {
+      const cameraControllers = [];
+      for (const controller of accessory.controllers.values()) {
+        if (controller.controllerType === 'camera') {
+          cameraControllers.push(controller);
+        }
+      }
+      for (const controller of cameraControllers) {
+        accessory.removeController(controller);
+      }
+    }
+
     this.controller = new CameraController({
       delegate: this,
       cameraStreamCount: this.streamUrl ? 2 : 0,

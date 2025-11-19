@@ -132,11 +132,15 @@ class FermaxBluePlatform {
   }
 
   async startPushListener() {
-    this.appToken = await this.pushClient.start((message) =>
-      this.handleNotification(message),
-    );
-    await this.client.registerAppToken(this.appToken, true);
-    this.log.info('Fermax Blue notifications ready');
+    try {
+      this.appToken = await this.pushClient.start((message) =>
+        this.handleNotification(message),
+      );
+      await this.client.registerAppToken(this.appToken, true);
+      this.log.info('Fermax Blue notifications ready');
+    } catch (error) {
+      this.log.warn('Failed to start Fermax push notifications. Doorbell events will not work, but video and door control should still function.', error.message);
+    }
   }
 
   handleNotification(message) {
