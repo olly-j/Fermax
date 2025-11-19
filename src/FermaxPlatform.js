@@ -24,9 +24,7 @@ class FermaxBluePlatform {
     }
 
     this.api.on('didFinishLaunching', () => {
-      this.initialize().catch((error) => {
-        this.log.error('Fermax initialization failed', error);
-      });
+      this.initializeWithRetry();
     });
 
     this.api.on('shutdown', async () => {
@@ -37,6 +35,16 @@ class FermaxBluePlatform {
   configureAccessory(accessory) {
     this.log.info('Loaded cached Fermax accessory', accessory.displayName);
     this.accessories.set(accessory.UUID, accessory);
+  }
+
+  async initializeWithRetry(attempt = 1) {
+    try {
+      await this.initialize();
+    } catch (error) {
+      const delay = Math.min(10 * 1000 * Math.pow(2, attempt - 1), 60 * 60 * 1000); // Max 1 hour
+      this.log.error(`Fermax initialization failed (retrying in ${delay / 1000}s):`, error.message);
+      setTimeout(() => this.initializeWithRetry(attempt + 1), delay);
+    }
   }
 
   async initialize() {

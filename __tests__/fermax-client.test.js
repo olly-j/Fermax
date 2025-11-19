@@ -75,5 +75,37 @@ describe('FermaxClient', () => {
     );
     expect(lastCall[1].method).toBe('POST');
   });
+
+  test('retries on 500 errors', async () => {
+    mockAuthResponse();
+    // First call fails with 500
+    fetch.mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      text: async () => 'Internal Server Error',
+    });
+    // Second call succeeds
+    fetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({}),
+    });
+
+    const client = new FermaxClient({
+      username: 'user@example.com',
+      password: 'secret',
+      dataDir: tmpDir,
+      logger: { warn: jest.fn() }, // Mock logger to swallow warnings
+    });
+
+    const result = await client.openDoor('device-1', {
+      block: 0,
+      subblock: 0,
+      number: 0,
+    });
+
+    expect(result).toBe(true);
+    expect(fetch).toHaveBeenCalledTimes(3); // 1 auth + 1 fail + 1 success
+  });
 });
 

@@ -75,7 +75,7 @@ class FermaxAccessory {
     }
   }
 
-  triggerDoorbell(payload) {
+  triggerDoorbell(_payload) {
     const { Characteristic } = this.platform;
     this.doorbellService.updateCharacteristic(
       Characteristic.ProgrammableSwitchEvent,

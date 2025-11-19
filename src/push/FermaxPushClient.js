@@ -1,4 +1,4 @@
-const { listen, register } = require('push-receiver');
+const { listen, register } = require('push-receiver-v2');
 const FileStore = require('../storage/FileStore');
 
 class FermaxPushClient {

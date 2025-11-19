@@ -17,7 +17,7 @@ console.log('🔍 Verifying homebridge-fermax-blue installation...\n');
 const rootSchema = path.join(pluginRoot, 'config.schema.json');
 if (fs.existsSync(rootSchema)) {
   console.log('✓ config.schema.json found at package root');
-  
+
   // Validate schema content
   try {
     const schema = JSON.parse(fs.readFileSync(rootSchema, 'utf8'));
@@ -92,9 +92,16 @@ if (fs.existsSync(packageJson)) {
 // Check 5: Dependencies
 console.log('\n📦 Checking dependencies...');
 const nodeModules = path.join(pluginRoot, '..', 'node_modules');
-const requiredDeps = ['hap-nodejs', 'homebridge', 'push-receiver', '@homebridge/camera-utils'];
+const requiredDeps = ['hap-nodejs', 'homebridge', 'push-receiver-v2', '@homebridge/camera-utils'];
 requiredDeps.forEach((dep) => {
-  const depPath = path.join(nodeModules, dep);
+  // Check parent node_modules (standard install)
+  let depPath = path.join(nodeModules, dep);
+
+  // Check local node_modules (dev environment)
+  if (!fs.existsSync(depPath)) {
+    depPath = path.join(pluginRoot, 'node_modules', dep);
+  }
+
   if (fs.existsSync(depPath)) {
     console.log(`✓ ${dep} is installed`);
   } else {

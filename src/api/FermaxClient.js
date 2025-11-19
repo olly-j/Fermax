@@ -145,27 +145,57 @@ class FermaxClient {
       });
     }
 
-    const response = await fetch(url, {
-      method,
-      headers: {
-        Authorization: `Bearer ${this.token.accessToken}`,
-        'Content-Type': body instanceof Buffer ? 'application/octet-stream' : 'application/json',
-        ...COMMON_HEADERS,
-        ...headers,
-      },
-      body: body && !(body instanceof Buffer) ? JSON.stringify(body) : body,
-    });
+    let attempt = 0;
+    const maxAttempts = 3;
+    const baseDelay = 1000;
 
-    if (response.status === 401) {
-      await this.ensureToken(true);
-      return this.request(endpoint, { method, body, headers, searchParams });
-    }
+    while (attempt < maxAttempts) {
+      try {
+        const response = await fetch(url, {
+          method,
+          headers: {
+            Authorization: `Bearer ${this.token.accessToken}`,
+            'Content-Type': body instanceof Buffer ? 'application/octet-stream' : 'application/json',
+            ...COMMON_HEADERS,
+            ...headers,
+          },
+          body: body && !(body instanceof Buffer) ? JSON.stringify(body) : body,
+        });
 
-    if (!response.ok) {
-      const message = await response.text();
-      throw new Error(`Fermax request failed (${response.status}): ${message}`);
+        if (response.status === 401) {
+          await this.ensureToken(true);
+          // Retry immediately with new token, don't count as a network failure attempt
+          // But to avoid infinite loops, we can just recurse once or continue
+          // For simplicity in this loop, let's just continue and let the next iteration pick up the new token
+          // However, we need to update the header.
+          // Easier to just return the recursive call as before, but we need to be careful about the attempt counter if we want to limit auth retries.
+          // The original code recursed: return this.request(...)
+          // Let's keep that pattern for 401s as they are special.
+          return this.request(endpoint, { method, body, headers, searchParams });
+        }
+
+        if (!response.ok) {
+          if (response.status >= 500 && attempt < maxAttempts - 1) {
+            throw new Error(`Server error ${response.status}`);
+          }
+          const message = await response.text();
+          throw new Error(`Fermax request failed (${response.status}): ${message}`);
+        }
+
+        return response;
+      } catch (error) {
+        attempt++;
+        const isNetworkError = error.message.includes('fetch') || error.message.includes('network') || error.message.includes('Server error');
+
+        if (attempt >= maxAttempts || !isNetworkError) {
+          throw error;
+        }
+
+        const delay = baseDelay * Math.pow(2, attempt - 1);
+        this.logger?.warn?.(`Fermax request failed, retrying in ${delay}ms... (Attempt ${attempt}/${maxAttempts})`, error.message);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
     }
-    return response;
   }
 
   async getPairings() {
