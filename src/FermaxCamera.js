@@ -1,41 +1,9 @@
-const { spawn } = require('child_process');
-const {
-  CameraController,
-  H264Level,
-  H264Profile,
-  SRTPCryptoSuites,
-} = require('hap-nodejs');
-const { defaultFfmpegPath } = require('@homebridge/camera-utils');
-
-const PORT_START = 40000;
-const allocatedPorts = new Set();
-
-const H264_PROFILE_NAMES = ['baseline', 'main', 'high'];
-const H264_LEVEL_NAMES = ['3.1', '3.2', '4.0'];
-
-function allocatePort() {
-  for (let port = PORT_START; port < 65000; port += 1) {
-    if (!allocatedPorts.has(port)) {
-      allocatedPorts.add(port);
-      return port;
-    }
-  }
-
-  throw new Error('Unable to allocate UDP port for Fermax camera stream');
-}
-
-function releasePort(port) {
-  allocatedPorts.delete(port);
-}
+const { spawn } = require('node:child_process');
+const dgram = require('node:dgram');
+const defaultFfmpegPath = require('ffmpeg-for-homebridge') || 'ffmpeg';
 
 function tokenizeArgs(input) {
-  if (!input) {
-    return [];
-  }
-
-  return input
-    .match(/(?:[^\s"]+|"[^"]*")+/g)
-    .map((token) => token.replace(/^"(.*)"$/, '$1'));
+  return (input?.match(/(?:[^\s"]+|"[^"]*")+/g) || []).map((token) => token.replace(/^"(.*)"$/, '$1'));
 }
 
 class FermaxCamera {
@@ -43,276 +11,183 @@ class FermaxCamera {
     this.platform = platform;
     this.deviceId = deviceId;
     this.accessory = accessory;
-    this.streamUrl = platform.config.cameraStreamUrl;
-    this.snapshotUrl = platform.config.cameraSnapshotUrl;
-    this.forceTranscode = platform.config.cameraForceTranscode ?? false;
-    this.maxBitrateOverride = platform.config.cameraMaxBitrate;
+    this.hap = platform.api.hap;
     this.ffmpegPath = platform.config.ffmpegPath || defaultFfmpegPath;
-    this.extraInputArgs = tokenizeArgs(platform.config.cameraStreamOptions);
-    this.ffmpegDebugOutput = platform.config.cameraDebug ?? false;
-
     this.pendingSessions = new Map();
+    this.preparingSessions = new Map();
     this.ongoingSessions = new Map();
-
-    const streamingOptions = {
-      supportedCryptoSuites: [SRTPCryptoSuites.AES_CM_128_HMAC_SHA1_80],
-      video: {
-        codec: {
-          profiles: [H264Profile.BASELINE, H264Profile.MAIN, H264Profile.HIGH],
-          levels: [H264Level.LEVEL3_1, H264Level.LEVEL3_2, H264Level.LEVEL4_0],
-        },
-        resolutions: [
-          [1920, 1080, 30],
-          [1280, 720, 30],
-          [640, 480, 30],
-          [320, 240, 15],
-        ],
-      },
-    };
-
-    // Remove any existing camera controllers to prevent duplicates on re-initialization
-    if (accessory.controllers) {
-      const cameraControllers = [];
-      for (const controller of accessory.controllers.values()) {
-        if (controller.controllerType === 'camera') {
-          cameraControllers.push(controller);
-        }
-      }
-      for (const controller of cameraControllers) {
-        accessory.removeController(controller);
-      }
-    }
-
-    this.controller = new CameraController({
+    this.disposed = false;
+    const { DoorbellController, H264Profile, H264Level, SRTPCryptoSuites } = this.hap;
+    this.controller = new DoorbellController({
+      externalDoorbellService: accessory.getService(platform.Service.Doorbell),
+      cameraStreamCount: 2,
       delegate: this,
-      cameraStreamCount: this.streamUrl ? 2 : 0,
-      streamingOptions,
+      streamingOptions: {
+        supportedCryptoSuites: [SRTPCryptoSuites.AES_CM_128_HMAC_SHA1_80],
+        video: {
+          codec: { profiles: [H264Profile.BASELINE, H264Profile.MAIN, H264Profile.HIGH], levels: [H264Level.LEVEL3_1, H264Level.LEVEL3_2, H264Level.LEVEL4_0] },
+          resolutions: [[1280, 720, 30], [720, 480, 25], [640, 480, 30], [320, 240, 15]],
+        },
+      },
     });
-
     accessory.configureController(this.controller);
   }
 
-  async handleSnapshotRequest(request, callback) {
+  async handleSnapshotRequest(_request, callback) {
     try {
-      if (this.snapshotUrl) {
-        const response = await fetch(this.snapshotUrl);
-        if (!response.ok) {
-          throw new Error(`Snapshot HTTP ${response.status}`);
-        }
-        const buffer = Buffer.from(await response.arrayBuffer());
-        callback(undefined, buffer);
-        return;
+      let snapshot;
+      if (this.platform.config.cameraSnapshotUrl) {
+        const response = await fetch(this.platform.config.cameraSnapshotUrl, { signal: AbortSignal.timeout(10000) });
+        if (!response.ok) throw new Error(`Snapshot HTTP ${response.status}`);
+        snapshot = Buffer.from(await response.arrayBuffer());
+      } else {
+        snapshot = await this.platform.client.getLastPicture(this.deviceId, this.platform.appToken);
       }
-
-      const snapshot = await this.platform.client.getLastPicture(
-        this.deviceId,
-        this.platform.appToken,
-      );
-      if (!snapshot) {
-        throw new Error('Fermax snapshot unavailable');
-      }
+      if (!snapshot?.length) throw new Error('Fermax snapshot unavailable');
       callback(undefined, snapshot);
-    } catch (error) {
-      this.platform.log.warn('Fermax snapshot failed', error.message);
-      callback(error);
+    } catch {
+      this.platform.log.warn('Fermax snapshot unavailable');
+      callback(new Error('Fermax snapshot unavailable'));
     }
   }
 
-  prepareStream(request, callback) {
-    const sessionId = request.sessionID;
-    const video = request.video;
-
-    const localVideoPort = allocatePort();
-    const sessionInfo = {
-      address: request.targetAddress,
-      videoPort: video.port,
-      localVideoPort,
-      videoCryptoSuite: video.srtpCryptoSuite,
-      videoSRTP: Buffer.concat([video.srtp_key, video.srtp_salt]),
-      videoSSRC: CameraController.generateSynchronisationSource(),
-    };
-
-    const response = {
-      video: {
-        port: localVideoPort,
-        ssrc: sessionInfo.videoSSRC,
-        srtp_key: video.srtp_key,
-        srtp_salt: video.srtp_salt,
-      },
-    };
-
-    this.pendingSessions.set(sessionId, sessionInfo);
-    callback(undefined, response);
+  async prepareStream(request, callback) {
+    if (this.disposed) return callback(new Error('Camera stopped'));
+    this.stopStream(request.sessionID);
+    const generation = Symbol();
+    this.preparingSessions.set(request.sessionID, generation);
+    const socket = dgram.createSocket(request.addressVersion === 'ipv6' ? 'udp6' : 'udp4');
+    try {
+      await new Promise((resolve, reject) => {
+        socket.once('error', reject);
+        socket.bind(0, resolve);
+      });
+      if (this.disposed || this.preparingSessions.get(request.sessionID) !== generation) {
+        socket.close(); return callback(new Error('Camera stopped'));
+      }
+      this.preparingSessions.delete(request.sessionID);
+      const video = request.video;
+      const session = {
+        address: request.targetAddress,
+        videoPort: video.port,
+        localVideoPort: socket.address().port,
+        reservation: socket,
+        videoSRTP: Buffer.concat([video.srtp_key, video.srtp_salt]),
+        videoSSRC: this.hap.CameraController.generateSynchronisationSource(),
+      };
+      session.expiry = setTimeout(() => this.stopStream(request.sessionID), 60000);
+      this.pendingSessions.set(request.sessionID, session);
+      callback(undefined, { video: { port: session.localVideoPort, ssrc: session.videoSSRC, srtp_key: video.srtp_key, srtp_salt: video.srtp_salt } });
+    } catch {
+      try { socket.close(); } catch { /* Already closed */ }
+      callback(new Error('Unable to reserve camera port'));
+    }
   }
 
   handleStreamRequest(request, callback) {
-    const sessionId = request.sessionID;
-
-    switch (request.type) {
-      case 'start':
-        this.startStream(sessionId, request, callback);
-        break;
-      case 'reconfigure':
-        this.platform.log.debug(
-          'Fermax camera received reconfigure request',
-          JSON.stringify(request.video),
-        );
-        callback();
-        break;
-      case 'stop':
-        this.stopStream(sessionId);
-        callback();
-        break;
-      default:
-        callback(new Error(`Unsupported request type: ${request.type}`));
-    }
+    if (request.type === 'stop') { this.stopStream(request.sessionID); callback(); }
+    else if (request.type === 'start') { this.startStream(request.sessionID, request, callback); }
+    else if (request.type === 'reconfigure') {
+      // Restart with the negotiated dimensions and bitrate, retaining SRTP parameters.
+      const previous = this.ongoingSessions.get(request.sessionID);
+      if (!previous) return callback(new Error('Missing stream session'));
+      const session = previous.info;
+      this.stopStream(request.sessionID);
+      this.pendingSessions.set(request.sessionID, session);
+      this.startStream(request.sessionID, request, callback);
+    } else callback(new Error('Unsupported camera request'));
   }
 
-  startStream(sessionId, request, callback) {
-    if (!this.streamUrl) {
-      callback(new Error('cameraStreamUrl is not configured'));
-      return;
-    }
-
-    const sessionInfo = this.pendingSessions.get(sessionId);
-    if (!sessionInfo) {
-      callback(new Error('Missing session information'));
-      return;
-    }
-
-    const video = request.video;
-    const profile = H264_PROFILE_NAMES[video.profile] || 'high';
-    const level = H264_LEVEL_NAMES[video.level] || '4.0';
-    const width = video.width;
-    const height = video.height;
-    const fps = video.fps;
-    const payloadType = video.pt;
-    const mtu = video.mtu;
-    const bitrate =
-      Math.min(
-        video.max_bit_rate,
-        this.maxBitrateOverride ?? video.max_bit_rate,
-      ) || video.max_bit_rate;
-
-    const targetAddress = sessionInfo.address;
-    const targetVideoPort = sessionInfo.videoPort;
-    const localVideoPort = sessionInfo.localVideoPort;
-    const ssrc = sessionInfo.videoSSRC;
-    const videoSRTP = sessionInfo.videoSRTP.toString('base64');
-
-    const args = [
-      '-hide_banner',
-      '-loglevel',
-      this.ffmpegDebugOutput ? 'info' : 'error',
-      ...this.extraInputArgs,
-      '-i',
-      this.streamUrl,
-      '-an',
-      '-sn',
-      '-dn',
-    ];
-
-    if (this.forceTranscode) {
-      args.push(
-        '-c:v',
-        'libx264',
-        '-pix_fmt',
-        'yuv420p',
-        '-preset',
-        'veryfast',
-        '-tune',
-        'zerolatency',
-        '-r',
-        `${fps}`,
-        '-vf',
-        `scale=${width}:${height}`,
-      );
-    } else {
-      args.push('-vcodec', 'copy');
-    }
-
-    args.push(
-      '-profile:v',
-      profile,
-      '-level:v',
-      level,
-      '-b:v',
-      `${bitrate}k`,
-      '-maxrate',
-      `${bitrate}k`,
-      '-bufsize',
-      `${bitrate * 2}k`,
-      '-payload_type',
-      `${payloadType}`,
-      '-ssrc',
-      `${ssrc}`,
-      '-f',
-      'rtp',
-      '-srtp_out_suite',
-      'AES_CM_128_HMAC_SHA1_80',
-      '-srtp_out_params',
-      videoSRTP,
-      `srtp://${targetAddress}:${targetVideoPort}?rtcpport=${targetVideoPort}&localrtcpport=${localVideoPort}&pkt_size=${mtu}`,
-    );
-
-    const ffmpegProcess = spawn(this.ffmpegPath, args, { env: process.env });
-    let started = false;
-
-    ffmpegProcess.on('error', (error) => {
-      this.platform.log.error('Fermax video ffmpeg error', error.message);
-      this.stopStream(sessionId);
-      if (!started) {
-        callback(error);
-      }
-    });
-
-    ffmpegProcess.stderr.on('data', (data) => {
-      if (this.ffmpegDebugOutput) {
-        this.platform.log.debug(`[Fermax camera] ${data}`);
-      }
-      if (!started) {
-        started = true;
-        callback();
-      }
-    });
-
-    ffmpegProcess.on('exit', (code, signal) => {
-      this.platform.log.debug(
-        `Fermax ffmpeg exited code=${code} signal=${signal}`,
-      );
-      this.stopStream(sessionId);
-    });
-
-    this.ongoingSessions.set(sessionId, {
-      process: ffmpegProcess,
-      localVideoPort,
-    });
+  async startStream(sessionId, request, callback) {
+    const session = this.pendingSessions.get(sessionId);
+    if (!session || this.disposed) return callback(new Error('Missing stream session'));
     this.pendingSessions.delete(sessionId);
+    clearTimeout(session.expiry);
+    let settled = false;
+    const finish = (error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(active.timeout);
+      callback(error);
+    };
+    const active = { info: session, process: null, finish, timeout: null };
+    this.ongoingSessions.set(sessionId, active);
+    active.timeout = setTimeout(() => {
+      finish(new Error('Camera startup timed out'));
+      this.stopStream(sessionId);
+    }, 60000);
+    try {
+      let source = { url: this.platform.config.cameraStreamUrl, inputArgs: [] };
+      if (!source.url && this.platform.client.getVideoSource) source = await this.platform.client.getVideoSource();
+      if (!source.url) throw new Error('No live video source is configured');
+      if (this.ongoingSessions.get(sessionId) !== active) return;
+      if (session.reservation) {
+        const reservation = session.reservation;
+        session.reservation = null;
+        await new Promise((resolve) => reservation.close(resolve));
+      }
+      if (this.ongoingSessions.get(sessionId) !== active || this.disposed) return;
+      const video = request.video;
+      const bitrate = Math.min(video.max_bit_rate, this.platform.config.cameraMaxBitrate ?? video.max_bit_rate);
+      const address = session.address.includes(':') ? `[${session.address}]` : session.address;
+      const args = ['-hide_banner', '-loglevel', 'error', '-nostats', '-progress', 'pipe:3',
+        ...tokenizeArgs(this.platform.config.cameraStreamOptions), ...(source.inputArgs || []), '-i', source.url, '-an', '-sn', '-dn'];
+      // Transcode by default to honor the HomeKit negotiated stream parameters.
+      if (this.platform.config.cameraForceTranscode !== false || source.forceTranscode) {
+        args.push('-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-preset', 'veryfast', '-tune', 'zerolatency',
+          '-r', `${video.fps}`, '-vf', `scale=${video.width}:${video.height}`,
+          '-profile:v', ['baseline', 'main', 'high'][video.profile] || 'baseline',
+          '-level:v', ['3.1', '3.2', '4.0'][video.level] || '3.1',
+          '-b:v', `${bitrate}k`, '-maxrate', `${bitrate}k`, '-bufsize', `${bitrate * 2}k`);
+      } else args.push('-c:v', 'copy');
+      args.push('-payload_type', `${video.pt}`, '-ssrc', `${session.videoSSRC}`, '-f', 'rtp',
+        '-srtp_out_suite', 'AES_CM_128_HMAC_SHA1_80', '-srtp_out_params', session.videoSRTP.toString('base64'),
+        `srtp://${address}:${session.videoPort}?rtcpport=${session.videoPort}&localrtcpport=${session.localVideoPort}&pkt_size=${video.mtu}`);
+      const child = spawn(this.ffmpegPath, args, { stdio: ['ignore', 'ignore', 'pipe', 'pipe'] });
+      active.process = child;
+      let progress = '';
+      child.stdio[3].on('data', (chunk) => {
+        progress = (progress + chunk.toString()).slice(-8192);
+        if (/(?:^|\n)frame=\s*[1-9]\d*(?:\r?\n|$)/.test(progress)) finish();
+      });
+      child.stderr.on('data', () => {
+        if (this.platform.config.cameraDebug) this.platform.log.debug('Fermax FFmpeg reported diagnostic output (media credentials withheld)');
+      });
+      child.on('error', () => { if (this.ongoingSessions.get(sessionId) !== active) return; finish(new Error('Unable to start FFmpeg')); this.stopStream(sessionId); });
+      child.on('exit', () => {
+        if (this.ongoingSessions.get(sessionId) !== active) return;
+        const wasStreaming = settled;
+        finish(new Error('FFmpeg exited before sending video'));
+        this.stopStream(sessionId);
+        if (wasStreaming) this.controller.forceStopStreamingSession?.(sessionId);
+      });
+    } catch {
+      finish(new Error('Fermax live video unavailable; check media setup'));
+      this.stopStream(sessionId);
+    }
   }
 
   stopStream(sessionId) {
-    const session = this.ongoingSessions.get(sessionId);
-    if (!session) {
-      const pending = this.pendingSessions.get(sessionId);
-      if (pending) {
-        releasePort(pending.localVideoPort);
-        this.pendingSessions.delete(sessionId);
-      }
-      return;
+    this.preparingSessions.delete(sessionId);
+    const pending = this.pendingSessions.get(sessionId);
+    if (pending) {
+      clearTimeout(pending.expiry);
+      pending.reservation?.close();
+      this.pendingSessions.delete(sessionId);
     }
-
-    releasePort(session.localVideoPort);
-    try {
-      if (!session.process.killed) {
-        session.process.kill('SIGKILL');
-      }
-    } catch (error) {
-      this.platform.log.warn('Failed to stop Fermax ffmpeg', error.message);
-    }
-
+    const active = this.ongoingSessions.get(sessionId);
+    if (!active) return;
     this.ongoingSessions.delete(sessionId);
+    clearTimeout(active.timeout);
+    active.finish(new Error('Camera stream stopped'));
+    active.info.reservation?.close();
+    if (active.process && !active.process.killed) active.process.kill('SIGKILL');
+  }
+
+  dispose() {
+    this.disposed = true;
+    this.preparingSessions.clear();
+    for (const id of [...this.pendingSessions.keys(), ...this.ongoingSessions.keys()]) this.stopStream(id);
   }
 }
-
 module.exports = FermaxCamera;
-

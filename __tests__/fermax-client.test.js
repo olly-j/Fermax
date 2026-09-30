@@ -40,7 +40,7 @@ describe('FermaxClient', () => {
     const token = await client.ensureToken(true);
     expect(token.accessToken).toBe('token-123');
     expect(fetch).toHaveBeenCalledWith(
-      expect.stringContaining('oauth-blue.fermax.io/oauth/token'),
+      expect.stringContaining('oauth-pro-duoxme.fermax.io/oauth/token'),
       expect.objectContaining({
         method: 'POST',
       }),
@@ -76,7 +76,7 @@ describe('FermaxClient', () => {
     expect(lastCall[1].method).toBe('POST');
   });
 
-  test('retries on 500 errors', async () => {
+  test('retries read requests on 500 errors', async () => {
     mockAuthResponse();
     // First call fails with 500
     fetch.mockResolvedValueOnce({
@@ -98,13 +98,9 @@ describe('FermaxClient', () => {
       logger: { warn: jest.fn() }, // Mock logger to swallow warnings
     });
 
-    const result = await client.openDoor('device-1', {
-      block: 0,
-      subblock: 0,
-      number: 0,
-    });
+    const result = await client.getDeviceInfo('device-1');
 
-    expect(result).toBe(true);
+    expect(result).toEqual({});
     expect(fetch).toHaveBeenCalledTimes(3); // 1 auth + 1 fail + 1 success
   });
 });

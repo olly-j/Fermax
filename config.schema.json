@@ -3,53 +3,29 @@
   "pluginType": "platform",
   "singular": true,
   "headerDisplay": "Fermax Blue / DuoxMe Video Doorbell Integration",
-  "footerDisplay": "Connect your Fermax VEO-XS WiFi doorbell to HomeKit with doorbell notifications, lock control, and live video streaming.",
+  "footerDisplay": "Door release and ring events in Apple Home. Home Assistant mode adds authenticated snapshots and video-only cloud preview. Hardware acceptance testing is required.",
   "schema": {
     "type": "object",
     "properties": {
-      "_step1": {
-        "title": "Step 1: Fermax Account Credentials",
-        "type": "string",
-        "default": "",
-        "description": "Enter your Fermax Blue / DuoxMe account details that you use to control your doorbell from the mobile app.",
-        "readonly": true
-      },
       "username": {
         "title": "Fermax Username (Email)",
         "type": "string",
         "placeholder": "your-email@example.com",
         "description": "The email address you use to log into the Fermax Blue or DuoxMe mobile app.",
-        "required": true,
         "format": "email"
       },
       "password": {
         "title": "Fermax Password",
         "type": "string",
         "format": "password",
-        "description": "Your Fermax Blue / DuoxMe account password. This is stored securely in your Homebridge config.",
-        "required": true
-      },
-      "_step2": {
-        "title": "Step 2: Firebase Cloud Messaging (FCM) Settings",
-        "type": "string",
-        "default": "",
-        "description": "Fermax uses Firebase Cloud Messaging to send doorbell ring notifications. Extract the Sender ID from the Fermax Blue app (iOS or Android).",
-        "readonly": true
+        "description": "Stored as plaintext in Homebridge configuration. Restrict config file access and use a dedicated invited Fermax account."
       },
       "senderId": {
-        "title": "Firebase Sender ID (Project Number)",
+        "title": "Firebase Sender ID (Optional / Experimental)",
         "type": "string",
         "placeholder": "123456789012",
-        "description": "Extract from Fermax Blue app:\n• iOS: Find GoogleService-Info.plist, look for GCM_SENDER_ID or project_number\n• Android: Unzip APK, find google-services.json, copy project_number field\nThis is typically a 10-12 digit number. See README for detailed extraction steps for both iOS and Android.",
-        "required": true,
-        "pattern": "^[0-9]{10,12}$"
-      },
-      "_step3": {
-        "title": "Step 3: Device Selection (Optional)",
-        "type": "string",
-        "default": "",
-        "description": "If you have multiple Fermax monitors, specify which one to use. Leave blank to use the first available device.",
-        "readonly": true
+        "description": "FCM messaging sender ID. Direct push also requires Firebase project ID, app ID and API key from your app configuration.",
+        "pattern": "^[0-9]+$"
       },
       "name": {
         "title": "Accessory Name in HomeKit",
@@ -61,53 +37,45 @@
       "deviceId": {
         "title": "Device ID (Optional)",
         "type": "string",
-        "description": "If you have multiple Fermax monitors, enter the specific deviceId here. You can find this in the Fermax Blue app or by checking the plugin logs after first run.",
+        "description": "Exact paired device ID. Required when the account has multiple monitors. An explicit mismatch fails setup.",
         "placeholder": "e6e9df9010ab"
       },
       "deviceTag": {
         "title": "Device Tag (Optional)",
         "type": "string",
-        "description": "Alternative: specify the human-readable tag/name of your monitor instead of deviceId.",
+        "description": "Alternative exact monitor tag; it must match one monitor. If both ID and tag are set they must identify the same monitor.",
         "placeholder": "Front Door"
       },
       "accessDoorKey": {
         "title": "Door Key (Optional)",
         "type": "string",
-        "description": "If your monitor controls multiple doors, specify the key (usually 'ZERO', 'ONE', etc.). Leave blank to use the first available door.",
+        "description": "Exact access door key such as ZERO. Multiple doors require an explicit key or index; a mismatch fails setup.",
         "placeholder": "ZERO"
       },
       "doorIndex": {
         "title": "Door Index (Optional)",
         "type": "integer",
-        "default": 0,
-        "description": "Fallback: use this numeric index if you don't know the door key. 0 = first door, 1 = second door, etc.",
+        "description": "Explicit numeric door selector, 0 for first entry. Out-of-range values fail setup. Prefer a stable accessDoorKey.",
         "minimum": 0,
         "maximum": 10
-      },
-      "_step4": {
-        "title": "Step 4: Video Streaming (Optional but Recommended)",
-        "type": "string",
-        "default": "",
-        "description": "Configure live video streaming for your doorbell. Without this, you'll only get snapshots in notifications.",
-        "readonly": true
       },
       "cameraStreamUrl": {
         "title": "Camera Stream URL",
         "type": "string",
-        "description": "FFmpeg-compatible video source. Options:\n1. RTSP: rtsp://your-monitor-ip:554/live/ch00_0\n2. HLS: https://fermax-stream-url/playlist.m3u8?token=...\n3. See README for extracting Fermax cloud stream URLs from push notifications.",
-        "placeholder": "rtsp://192.168.1.100:554/live/ch00_0"
+        "description": "Optional externally verified FFmpeg source. DUOX PLUS does not have a proven generic RTSP URL. In Home Assistant mode, leave blank to use its authenticated MJPEG camera endpoint.",
+        "placeholder": ""
       },
       "cameraSnapshotUrl": {
         "title": "Snapshot URL (Optional)",
         "type": "string",
-        "description": "HTTP endpoint that returns a JPEG image for HomeKit snapshots. If not provided, the plugin will use Fermax's photocaller API (requires 'Photocaller' enabled in Fermax app).",
+        "description": "Optional HTTP JPEG override. Home Assistant mode uses the selected HA camera; direct mode uses Fermax photocaller if a registered app token is available.",
         "placeholder": "https://your-camera/snapshot.jpg"
       },
       "cameraForceTranscode": {
         "title": "Force Video Transcoding",
         "type": "boolean",
-        "default": false,
-        "description": "Enable this if your stream uses HLS or other formats that need re-encoding. For RTSP streams with H.264, you can usually leave this disabled."
+        "default": true,
+        "description": "Transcode to honor HomeKit resolution and bitrate. Home Assistant MJPEG always requires this. Disable only for an already compatible H.264 source."
       },
       "cameraStreamOptions": {
         "title": "Extra FFmpeg Options (Advanced)",
@@ -123,18 +91,11 @@
         "minimum": 500,
         "maximum": 10000
       },
-      "_step5": {
-        "title": "Step 5: Advanced Settings (Optional)",
-        "type": "string",
-        "default": "",
-        "description": "Fine-tune plugin behavior. Most users can skip these settings.",
-        "readonly": true
-      },
       "unlockResetSeconds": {
         "title": "Lock Reset Timeout (seconds)",
         "type": "integer",
         "default": 8,
-        "description": "After unlocking the door, how many seconds before the lock state resets to 'locked' in HomeKit. Default: 8 seconds.",
+        "description": "Reset the displayed release state after this delay. This is a timer, not a physical door-position sensor; the plugin cannot remotely secure the door.",
         "minimum": 1,
         "maximum": 60
       },
@@ -148,23 +109,212 @@
         "title": "Enable Debug Logging",
         "type": "boolean",
         "default": false,
-        "description": "Enable verbose FFmpeg logging for troubleshooting video streaming issues. This will generate a lot of log output."
+        "description": "Log generic FFmpeg diagnostic activity while withholding media URLs, bearer headers and SRTP keys."
       },
       "clientId": {
         "title": "Custom OAuth Client ID (Advanced)",
         "type": "string",
-        "description": "Only needed if Fermax changes their OAuth credentials. Leave blank to use the default.",
+        "description": "Current OAuth client ID from your official DuoxMe app. The bundled legacy fallback has not been validated against current accounts.",
         "placeholder": "Leave blank unless instructed"
       },
       "clientSecret": {
         "title": "Custom OAuth Client Secret (Advanced)",
         "type": "string",
-        "description": "Only needed if Fermax changes their OAuth credentials. Leave blank to use the default.",
+        "description": "Current OAuth client secret from your official DuoxMe app. The bundled legacy fallback has not been validated against current accounts.",
         "format": "password",
         "placeholder": "Leave blank unless instructed"
+      },
+      "backend": {
+        "title": "Connection",
+        "type": "string",
+        "enum": [
+          "direct",
+          "homeassistant"
+        ],
+        "default": "direct",
+        "description": "Use Home Assistant to reuse the maintained Fermax cloud media integration. Direct mode supports door release, experimental push, and an optional external video source.",
+        "enumNames": [
+          "Direct Fermax",
+          "Home Assistant"
+        ]
+      },
+      "firebaseProjectId": {
+        "title": "Firebase project ID",
+        "type": "string",
+        "description": "Direct push client configuration from the official app; sender ID alone is insufficient."
+      },
+      "firebaseAppId": {
+        "title": "Firebase app ID",
+        "type": "string",
+        "description": "Direct push client configuration from the official app; sender ID alone is insufficient."
+      },
+      "firebaseApiKey": {
+        "title": "Firebase API key",
+        "type": "string",
+        "description": "Direct push client configuration from the official app; sender ID alone is insufficient.",
+        "format": "password"
+      },
+      "firebaseVapidKey": {
+        "title": "Firebase VAPID key (if needed)",
+        "type": "string",
+        "description": "Direct push client configuration from the official app; sender ID alone is insufficient.",
+        "format": "password"
+      },
+      "homeAssistantUrl": {
+        "title": "Home Assistant URL",
+        "type": "string",
+        "description": "Server origin reachable from Homebridge, e.g. https://ha.example.com."
+      },
+      "homeAssistantToken": {
+        "title": "Home Assistant access token",
+        "type": "string",
+        "description": "Long-lived bearer token; stored in Homebridge config. Use a dedicated HA user and protect this file.",
+        "format": "password"
+      },
+      "homeAssistantLockEntity": {
+        "title": "Door lock entity",
+        "type": "string",
+        "description": "Exact lock entity, e.g. lock.entrance. No automatic fallback."
+      },
+      "homeAssistantRingEntity": {
+        "title": "Doorbell event entity",
+        "type": "string",
+        "description": "Use the actual event.* doorbell entity, not the connectivity binary sensor. Older binary_sensor ring entities also work."
+      },
+      "homeAssistantCameraEntity": {
+        "title": "Camera entity",
+        "type": "string",
+        "description": "Exact camera.* entity for snapshots and authenticated MJPEG video."
+      },
+      "homeAssistantPreviewEntity": {
+        "title": "Camera preview button",
+        "type": "string",
+        "description": "Exact button.* preview entity to wake a receive-only cloud stream when Apple Home opens video."
+      },
+      "fermaxBaseUrl": {
+        "title": "Fermax API origin",
+        "type": "string",
+        "default": "https://pro-duoxme.fermax.io",
+        "description": "Direct mode. Only reviewed current/legacy Fermax HTTPS service hosts are accepted."
+      },
+      "fermaxAuthUrl": {
+        "title": "Fermax OAuth URL",
+        "type": "string",
+        "default": "https://oauth-pro-duoxme.fermax.io/oauth/token",
+        "description": "Direct mode. Only reviewed current/legacy Fermax HTTPS service hosts are accepted."
       }
     },
-    "required": ["username", "password", "senderId"]
-  }
+    "required": [],
+    "allOf": [
+      {
+        "if": {
+          "properties": {
+            "backend": {
+              "const": "homeassistant"
+            }
+          },
+          "required": [
+            "backend"
+          ]
+        },
+        "then": {
+          "required": [
+            "homeAssistantUrl",
+            "homeAssistantToken",
+            "homeAssistantLockEntity"
+          ]
+        },
+        "else": {
+          "required": [
+            "username",
+            "password"
+          ]
+        }
+      }
+    ]
+  },
+  "layout": [
+    {
+      "type": "fieldset",
+      "title": "Connection",
+      "items": [
+        "backend"
+      ]
+    },
+    {
+      "type": "fieldset",
+      "title": "Home Assistant",
+      "items": [
+        "homeAssistantUrl",
+        "homeAssistantToken",
+        "homeAssistantLockEntity",
+        "homeAssistantRingEntity",
+        "homeAssistantCameraEntity",
+        "homeAssistantPreviewEntity"
+      ],
+      "description": "Used only in Home Assistant mode. Enter the actual HA entity IDs."
+    },
+    {
+      "type": "fieldset",
+      "title": "Direct Fermax account",
+      "description": "Used only in Direct Fermax mode.",
+      "items": [
+        "username",
+        "password"
+      ]
+    },
+    {
+      "type": "fieldset",
+      "title": "Video Streaming (Optional but Recommended)",
+      "description": "Home Assistant mode supplies video automatically through authenticated MJPEG; direct mode needs a real external stream source.",
+      "items": [
+        "cameraStreamUrl",
+        "cameraSnapshotUrl",
+        "cameraForceTranscode",
+        "cameraStreamOptions",
+        "cameraMaxBitrate"
+      ]
+    },
+    {
+      "type": "fieldset",
+      "title": "Device Selection (Optional)",
+      "description": "Direct mode only. Multiple monitors require an exact device selector; multiple access doors require an explicit key or index. Mismatches fail setup.",
+      "expandable": true,
+      "items": [
+        "name",
+        "deviceId",
+        "deviceTag",
+        "accessDoorKey",
+        "doorIndex"
+      ]
+    },
+    {
+      "type": "fieldset",
+      "title": "Direct push (experimental)",
+      "description": "Full Firebase configuration is required. Use a dedicated invited user to preserve phone notifications.",
+      "expandable": true,
+      "items": [
+        "senderId",
+        "firebaseProjectId",
+        "firebaseAppId",
+        "firebaseApiKey",
+        "firebaseVapidKey"
+      ]
+    },
+    {
+      "type": "fieldset",
+      "title": "Advanced Settings",
+      "description": "Fine-tune plugin behavior. Most users can skip these settings.",
+      "expandable": true,
+      "items": [
+        "unlockResetSeconds",
+        "ffmpegPath",
+        "cameraDebug",
+        "clientId",
+        "clientSecret",
+        "fermaxBaseUrl",
+        "fermaxAuthUrl"
+      ]
+    }
+  ]
 }
-

@@ -1,4 +1,6 @@
 const fs = require('fs/promises');
+const { constants } = require('fs');
+const { randomUUID } = require('crypto');
 const path = require('path');
 
 class FileStore {
@@ -7,24 +9,37 @@ class FileStore {
   }
 
   async read(defaultValue = null) {
+    let handle;
     try {
-      const raw = await fs.readFile(this.filePath, 'utf8');
+      handle = await fs.open(this.filePath, constants.O_RDONLY | constants.O_NOFOLLOW);
+      await handle.chmod(0o600);
+      const raw = await handle.readFile('utf8');
       return JSON.parse(raw);
     } catch (error) {
-      if (error.code === 'ENOENT') {
-        return defaultValue;
-      }
+      if (error.code === 'ENOENT' || error instanceof SyntaxError) return defaultValue;
       throw error;
+    } finally {
+      await handle?.close();
     }
   }
 
   async write(payload) {
-    await fs.mkdir(path.dirname(this.filePath), { recursive: true });
-    await fs.writeFile(this.filePath, JSON.stringify(payload, null, 2), {
-      mode: 0o600,
-    });
+    const directory = path.dirname(this.filePath);
+    await fs.mkdir(directory, { recursive: true, mode: 0o700 });
+    const temporary = `${this.filePath}.${randomUUID()}.tmp`;
+    let handle;
+    try {
+      handle = await fs.open(temporary, 'wx', 0o600);
+      await handle.writeFile(JSON.stringify(payload, null, 2), 'utf8');
+      await handle.sync();
+      await handle.close();
+      handle = null;
+      await fs.rename(temporary, this.filePath);
+    } finally {
+      await handle?.close();
+      await fs.rm(temporary, { force: true });
+    }
   }
 }
 
 module.exports = FileStore;
-

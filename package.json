@@ -1,6 +1,6 @@
 {
   "name": "homebridge-fermax-blue",
-  "version": "0.1.2",
+  "version": "0.2.0-beta.1",
   "description": "Homebridge platform plugin that bridges Fermax Blue / DuoxMe doorbells into HomeKit with doorbell, lock, and video feed.",
   "main": "src/index.js",
   "type": "commonjs",
@@ -10,12 +10,14 @@
     "README.md",
     "LICENSE",
     "verify-install.js",
-    "postinstall.js"
+    "docs",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "test": "jest --config jest.config.js",
     "setup": "node src/setup/cli.js",
-    "postinstall": "node postinstall.js"
+    "lint": "eslint src __tests__ verify-install.js",
+    "verify": "npm run lint && npm test -- --runInBand && node verify-install.js"
   },
   "keywords": [
     "homebridge-plugin",
@@ -35,8 +37,8 @@
   },
   "homepage": "https://github.com/olly-j/Fermax#readme",
   "engines": {
-    "node": ">=18.0.0",
-    "homebridge": ">=1.6.0"
+    "node": "^22.0.0 || ^24.0.0 || ^26.0.0",
+    "homebridge": ">=1.11.0 <3"
   },
   "homebridge": {
     "platforms": [
@@ -49,18 +51,19 @@
     ]
   },
   "dependencies": {
-    "@homebridge/camera-utils": "^1.0.0",
-    "push-receiver-v2": "^2.2.0"
+    "@eneris/push-receiver": "4.4.0",
+    "ffmpeg-for-homebridge": "2.2.2"
   },
   "peerDependencies": {
-    "hap-nodejs": ">=1.0.0",
-    "homebridge": ">=1.6.0"
+    "homebridge": ">=1.11.0 <3"
   },
   "devDependencies": {
     "eslint": "^9.39.1",
     "globals": "^16.5.0",
-    "hap-nodejs": "^0.11.2",
-    "homebridge": "^1.6.1",
+    "homebridge": "^2.4.0",
     "jest": "^29.7.0"
+  },
+  "bin": {
+    "fermax-blue-setup": "src/setup/cli.js"
   }
 }
