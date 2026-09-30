@@ -9,7 +9,7 @@ const HomeAssistantClient = require('../src/backend/HomeAssistantClient');
 
 // Optional local integration: no camera, credentials, or internet required.
 // Set FERMAX_TEST_FFMPEG to use an FFmpeg installation in a different location.
-const ffmpegPath = [process.env.FERMAX_TEST_FFMPEG, '/opt/homebrew/bin/ffmpeg', '/usr/bin/ffmpeg']
+const ffmpegPath = [process.env.FERMAX_TEST_FFMPEG, require('ffmpeg-for-homebridge'), '/opt/homebrew/bin/ffmpeg', '/usr/bin/ffmpeg']
   .find((path) => path && fs.existsSync(path));
 const integrationTest = ffmpegPath ? test : test.skip;
 

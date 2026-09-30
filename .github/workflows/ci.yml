@@ -28,10 +28,12 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
           cache: npm
-      - name: Install FFmpeg for the real-media test
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - name: Install dependencies
         run: npm ci --ignore-scripts
+      - name: Install and require the plugin's FFmpeg binary
+        run: |
+          npm rebuild ffmpeg-for-homebridge
+          node --eval 'const fs = require("node:fs"); const ffmpeg = require("ffmpeg-for-homebridge"); if (!ffmpeg || !fs.existsSync(ffmpeg)) throw new Error("Bundled FFmpeg is unavailable"); fs.appendFileSync(process.env.GITHUB_ENV, `FERMAX_TEST_FFMPEG=${ffmpeg}\n`);'
       - name: Verify
         run: npm run verify
       - name: Audit production dependencies

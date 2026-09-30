@@ -11,7 +11,7 @@ npm audit
 npm pack
 ```
 
-`verify` runs lint, tests and installation checks. The real-media integration test needs FFmpeg; set `FERMAX_TEST_FFMPEG` if it is not installed at a detected path. Without FFmpeg, that test is explicitly skipped. CI installs FFmpeg and exercises Node 22, 24 and 26.
+`verify` runs lint, tests and installation checks. The real-media integration test needs FFmpeg; set `FERMAX_TEST_FFMPEG` if it is not installed at a detected path. Without FFmpeg, that test is explicitly skipped. CI requires the plugin's bundled FFmpeg binary and exercises Node 22, 24 and 26.
 
 The suite covers authentication, safe selection, single-attempt commands, cache privacy, ring deduplication, cancellation, stalled HTTP bodies, real UDP reservations and authenticated local video. These checks cannot establish physical monitor operation or Pi performance. Homebridge 2.4's HAP implementation is exercised by the suite; compatibility with other supported versions needs deployment checks.
 
