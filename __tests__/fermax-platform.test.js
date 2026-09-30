@@ -93,6 +93,47 @@ describe('FermaxPlatform', () => {
     expect(log.warn).toHaveBeenCalledWith(expect.stringContaining('firebaseApiKey'));
   });
 
+  test('direct push does not require the unused sender ID', async () => {
+    delete platform.config.senderId;
+    await platform.initialize();
+    expect(pushClient.start).toHaveBeenCalledTimes(1);
+    expect(directClient.registerAppToken).toHaveBeenCalledWith('token-123', true);
+  });
+
+  test.each([
+    ['unlockResetSeconds', 0], ['unlockResetSeconds', 61], ['unlockResetSeconds', '8'],
+    ['cameraMaxBitrate', 0], ['cameraMaxBitrate', 10001], ['cameraMaxBitrate', 1980.5],
+    ['cameraForceTranscode', 'false'], ['cameraDebug', 'true'], ['cameraStreamOptions', {}],
+    ['cameraSnapshotUrl', 'file:///private/photo.jpg'], ['cameraSnapshotUrl', 'not a URL'],
+  ])('rejects invalid saved %s before connecting', async (field, value) => {
+    platform.config[field] = value;
+    await expect(platform.initialize()).rejects.toThrow(field);
+    expect(FermaxClient).not.toHaveBeenCalled();
+    expect(api.registerPlatformAccessories).not.toHaveBeenCalled();
+  });
+
+  test.each(['clientId', 'clientSecret'])('rejects a partial custom OAuth pair (%s)', async (field) => {
+    platform.config[field] = 'custom-value';
+    await expect(platform.initialize()).rejects.toThrow('both clientId and clientSecret');
+    expect(FermaxClient).not.toHaveBeenCalled();
+  });
+
+  test('ignores inactive direct OAuth fields in Home Assistant mode', async () => {
+    platform.config = { ...haConfig, clientId: 'saved-inactive-field' };
+    await platform.initialize();
+    expect(haClient.start).toHaveBeenCalledTimes(1);
+  });
+
+  test.each([
+    { ...haConfig, homeAssistantCameraEntity: undefined },
+    { ...haConfig, cameraStreamUrl: 'rtsp://camera.test/live' },
+  ])('does not validate or use an inactive saved HA preview button: %j', async (config) => {
+    platform.config = config;
+    await platform.initialize();
+    expect(HomeAssistantClient).toHaveBeenCalledWith(expect.objectContaining({ previewEntity: undefined }));
+    expect(log.warn).toHaveBeenCalledWith(expect.stringContaining('preview button is unused'));
+  });
+
   test('an explicit device mismatch never registers an accessory or push token', async () => {
     platform.config.deviceId = 'other-device';
     await expect(platform.initialize()).rejects.toThrow('does not match exactly one pairing');

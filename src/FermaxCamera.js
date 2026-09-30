@@ -1,6 +1,7 @@
 const { spawn } = require('node:child_process');
 const dgram = require('node:dgram');
 const defaultFfmpegPath = require('ffmpeg-for-homebridge') || 'ffmpeg';
+const { DEFAULT_CAMERA_MAX_BITRATE } = require('./configuration');
 
 function tokenizeArgs(input) {
   return (input?.match(/(?:[^\s"]+|"[^"]*")+/g) || []).map((token) => token.replace(/^"(.*)"$/, '$1'));
@@ -128,7 +129,7 @@ class FermaxCamera {
       }
       if (this.ongoingSessions.get(sessionId) !== active || this.disposed) return;
       const video = request.video;
-      const bitrate = Math.min(video.max_bit_rate, this.platform.config.cameraMaxBitrate ?? video.max_bit_rate);
+      const bitrate = Math.min(video.max_bit_rate, this.platform.config.cameraMaxBitrate ?? DEFAULT_CAMERA_MAX_BITRATE);
       const address = session.address.includes(':') ? `[${session.address}]` : session.address;
       const args = ['-hide_banner', '-loglevel', 'error', '-nostats', '-progress', 'pipe:3',
         ...tokenizeArgs(this.platform.config.cameraStreamOptions), ...(source.inputArgs || []), '-i', source.url, '-an', '-sn', '-dn'];

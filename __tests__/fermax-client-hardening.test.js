@@ -156,7 +156,7 @@ describe('Fermax client security and reliability', () => {
     await fs.writeFile(path.join(directory, 'fermax-token.json'), JSON.stringify({ accessToken: 'legacy', expiresAt: '2099-01-01' }));
     fetch.mockResolvedValue(auth());
     const other = new FermaxClient({ username: 'second', password: 'secret', dataDir: directory });
-    const otherClient = new FermaxClient({ username: 'first', password: 'secret', dataDir: directory, clientId: 'other' });
+    const otherClient = new FermaxClient({ username: 'first', password: 'secret', dataDir: directory, clientId: 'other', clientSecret: 'other-secret' });
     await Promise.all([client.ensureToken(), other.ensureToken(), otherClient.ensureToken()]);
     expect(fetch).toHaveBeenCalledTimes(3);
     const filenames = await fs.readdir(directory);

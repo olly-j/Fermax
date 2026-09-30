@@ -4,13 +4,16 @@ const FileStore = require('../storage/FileStore');
 
 class FermaxPushClient {
   constructor({ senderId, projectId, appId, apiKey, vapidKey = '', username, dataDir, logger }) {
-    if (![senderId, projectId, appId, apiKey].every((value) => typeof value === 'string' && value)) {
-      throw new Error('Direct push requires all four Firebase client configuration fields.');
+    if (![projectId, appId, apiKey].every((value) => typeof value === 'string' && value.trim())) {
+      throw new Error('Direct push requires Firebase project ID, app ID and API key.');
     }
-    this.firebase = { messagingSenderId: senderId, projectId, appId, apiKey };
+    // messagingSenderId is not consumed by push-receiver 4.4.0. Retain it only
+    // in the existing credential scope when upgrading an old saved config.
+    this.firebase = { projectId, appId, apiKey };
     this.vapidKey = vapidKey;
     this.logger = logger;
-    const scope = createHash('sha256').update(JSON.stringify([username, this.firebase, vapidKey])).digest('hex').slice(0, 24);
+    const cacheFirebase = senderId ? { messagingSenderId: senderId, projectId, appId, apiKey } : this.firebase;
+    const scope = createHash('sha256').update(JSON.stringify([username, cacheFirebase, vapidKey])).digest('hex').slice(0, 24);
     this.credentialsStore = new FileStore(dataDir, `fermax-fcm-${scope}.json`);
     this.persistentStore = new FileStore(dataDir, `fermax-fcm-ids-${scope}.json`);
     this.client = null;

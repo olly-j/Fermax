@@ -23,7 +23,7 @@ Create a long-lived access token from an HA user profile. In the Homebridge plug
 | Camera entity | `camera.entrance` | Snapshots and MJPEG video |
 | Preview button | `button.entrance_camera_preview` | Wakes the receive-only cloud session |
 
-Replace all example IDs. Leave **Camera Stream URL** blank for automatic HA media. Optional camera/ring fields can be omitted for door-release-only use. Save and restart Homebridge.
+Replace all example IDs. Leave **Camera Stream URL** blank for automatic HA media. Optional camera/ring fields can be omitted for door-release-only use. The preview button requires a camera entity; an external video URL bypasses the automatic HA stream and preview activation. Save and restart Homebridge.
 
 Tokens grant access beyond the selected entities according to HA permissions. Protect Homebridge configuration, use a dedicated HA user where practical, and prefer HTTPS. HTTP transmits the token in plaintext over the network.
 
