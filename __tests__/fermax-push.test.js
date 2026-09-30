@@ -48,9 +48,9 @@ describe('FermaxPushClient', () => {
     await fs.rm(dataDir, { recursive: true, force: true });
   });
 
-  test.each(['senderId', 'projectId', 'appId', 'apiKey'])('requires Firebase %s', (field) => {
+  test.each(['projectId', 'appId', 'apiKey'])('requires Firebase %s', (field) => {
     for (const value of [undefined, '', 123]) {
-      expect(() => makeClient({ [field]: value })).toThrow('all four Firebase');
+      expect(() => makeClient({ [field]: value })).toThrow('Firebase project ID');
     }
     expect(PushReceiver).not.toHaveBeenCalled();
   });
@@ -59,10 +59,16 @@ describe('FermaxPushClient', () => {
     const client = makeClient();
     await expect(client.start(jest.fn())).resolves.toBe('initial-token');
     expect(PushReceiver).toHaveBeenCalledWith({
-      firebase: { messagingSenderId: 'sender', projectId: 'project', appId: 'app', apiKey: 'key' },
+      firebase: { projectId: 'project', appId: 'app', apiKey: 'key' },
       vapidKey: 'vapid', credentials: undefined, persistentIds: [], debug: false,
     });
     expect(receivers[0].connect).toHaveBeenCalledTimes(1);
+  });
+
+  test('connects without the unused sender ID and preserves old configuration compatibility', async () => {
+    const client = makeClient({ senderId: undefined });
+    await expect(client.start(jest.fn())).resolves.toBe('initial-token');
+    expect(receivers[0].options.firebase).toEqual({ projectId: 'project', appId: 'app', apiKey: 'key' });
   });
 
   test('isolates persisted credentials and delivery IDs by account and Firebase configuration', async () => {

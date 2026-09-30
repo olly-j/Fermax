@@ -51,6 +51,13 @@ describe('FermaxCamera streaming lifecycle', () => {
   });
   afterEach(() => { camera.dispose(); jest.useRealTimers(); });
 
+  test('applies the documented default 2000 kbps cap when HomeKit requests more', async () => {
+    pending(camera);
+    await camera.startStream('session', { video: { ...video, max_bit_rate: 5000 } }, jest.fn());
+    const args = spawn.mock.calls[0][1];
+    expect(args[args.indexOf('-b:v') + 1]).toBe('2000k');
+  });
+
   test('starts only after an encoded frame, never because stderr has diagnostics', async () => {
     pending(camera);
     const callback = jest.fn();

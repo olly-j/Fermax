@@ -2,6 +2,7 @@ const FermaxClient = require('./api/FermaxClient');
 const FermaxPushClient = require('./push/FermaxPushClient');
 const FermaxAccessory = require('./FermaxAccessory');
 const HomeAssistantClient = require('./backend/HomeAssistantClient');
+const { validateConfiguration } = require('./configuration');
 
 const PLATFORM_NAME = 'FermaxBluePlatform';
 const PLUGIN_NAME = 'homebridge-fermax-blue';
@@ -58,17 +59,19 @@ class FermaxBluePlatform {
 
   async initialize() {
     if (this.stopped) return;
-    if (!['direct', 'homeassistant'].includes(this.config.backend ?? 'direct')) {
-      throw new Error('backend must be direct or homeassistant');
-    }
+    validateConfiguration(this.config);
     if (this.config.backend === 'homeassistant') {
+      if (this.config.homeAssistantPreviewEntity && (!this.config.homeAssistantCameraEntity || this.config.cameraStreamUrl)) {
+        this.log.warn('Home Assistant preview button is unused without an HA camera stream. Clear it or use the selected HA camera for video.');
+      }
       if (!this.client) this.client = new HomeAssistantClient({
         url: this.config.homeAssistantUrl,
         token: this.config.homeAssistantToken,
         cameraEntity: this.config.homeAssistantCameraEntity,
         lockEntity: this.config.homeAssistantLockEntity,
         ringEntity: this.config.homeAssistantRingEntity,
-        previewEntity: this.config.homeAssistantPreviewEntity,
+        previewEntity: this.config.homeAssistantCameraEntity && !this.config.cameraStreamUrl
+          ? this.config.homeAssistantPreviewEntity : undefined,
         logger: this.log,
       });
       await this.syncDevices();
@@ -90,10 +93,10 @@ class FermaxBluePlatform {
       authUrl: this.config.fermaxAuthUrl || undefined,
       baseUrl: this.config.fermaxBaseUrl || undefined,
     });
-    const pushFields = ['senderId', 'firebaseProjectId', 'firebaseAppId', 'firebaseApiKey'];
+    const pushFields = ['firebaseProjectId', 'firebaseAppId', 'firebaseApiKey'];
     const configured = pushFields.filter((key) => this.config[key]);
-    if (configured.length && configured.length !== pushFields.length) {
-      this.log.warn('Direct push requires senderId, firebaseProjectId, firebaseAppId and firebaseApiKey. Unlock remains available; use Home Assistant for the maintained Fermax video/push route.');
+    if ((configured.length || this.config.senderId || this.config.firebaseVapidKey) && configured.length !== pushFields.length) {
+      this.log.warn('Direct push requires firebaseProjectId, firebaseAppId and firebaseApiKey. Unlock remains available; use Home Assistant for the maintained Fermax video/push route.');
     } else if (configured.length && !this.pushClient) {
       this.pushClient = new FermaxPushClient({
         senderId: this.config.senderId,
@@ -257,4 +260,3 @@ class FermaxBluePlatform {
 }
 
 module.exports = FermaxBluePlatform;
-

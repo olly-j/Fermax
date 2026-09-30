@@ -25,12 +25,17 @@ class FermaxClient {
     password,
     logger,
     dataDir,
-    clientId = DEFAULT_CLIENT_ID,
-    clientSecret = DEFAULT_CLIENT_SECRET,
+    clientId,
+    clientSecret,
     requestTimeoutMs = 15000,
     baseUrl = BASE_URL,
     authUrl = OAUTH_URL,
   }) {
+    if (Boolean(clientId) !== Boolean(clientSecret)) {
+      throw new Error('Custom OAuth credentials require both clientId and clientSecret.');
+    }
+    clientId = clientId || DEFAULT_CLIENT_ID;
+    clientSecret = clientSecret || DEFAULT_CLIENT_SECRET;
     this.username = username;
     this.password = password;
     this.logger = logger;
@@ -452,4 +457,3 @@ class FermaxClient {
 }
 
 module.exports = FermaxClient;
-

@@ -37,7 +37,7 @@ Home Assistant mode reuses upstream mediasoup/WebRTC handling and exposes its me
 - Ring recovery suppresses historical events. Events during an outage can be missed.
 - FFmpeg startup requires encoded-frame progress; diagnostic output is not treated as success or logged with media credentials.
 
-The HomeKit lock display is a timer, not a door-position sensor. There is no physical secure command. Video has no audio or HomeKit Secure Video recording. HAP exposes a camera stream service even without a configured media source; an attempted stream then reports unavailable.
+The HomeKit lock display is a timer, not a door-position sensor. There is no physical secure command. Video has no audio or HomeKit Secure Video recording. Camera services are exposed only when a media source or direct push snapshot route is configured. Direct snapshots alone do not establish a live-video source.
 
 ## Project authorities
 

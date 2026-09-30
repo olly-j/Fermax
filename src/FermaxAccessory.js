@@ -1,4 +1,5 @@
 const FermaxCamera = require('./FermaxCamera');
+const { hasCameraCapability, DEFAULT_UNLOCK_RESET_SECONDS } = require('./configuration');
 
 class FermaxAccessory {
   constructor(platform, accessory, context) {
@@ -17,7 +18,7 @@ class FermaxAccessory {
     this.accessory
       .getService(Service.AccessoryInformation)
       ?.setCharacteristic(Characteristic.Manufacturer, 'Fermax')
-      .setCharacteristic(Characteristic.Model, 'Blue VEO-XS')
+      .setCharacteristic(Characteristic.Model, 'DUOX')
       .setCharacteristic(Characteristic.SerialNumber, this.deviceId);
 
     this.doorbellService =
@@ -35,8 +36,16 @@ class FermaxAccessory {
       .getCharacteristic(Characteristic.LockTargetState)
       .onSet(async (value) => this.handleLockTarget(value));
 
-    if (!this.camera) {
+    this.doorbellService.setPrimaryService?.();
+    if (!this.camera && hasCameraCapability(this.platform.config)) {
       this.camera = new FermaxCamera(this.platform, this.deviceId, this.accessory);
+    } else if (!this.camera) {
+      // Old cached accessories may still contain the previously unconditional
+      // camera services. Configure then remove the controller to retire its
+      // persisted services through HAP's own migration mechanism.
+      const previousCamera = new FermaxCamera(this.platform, this.deviceId, this.accessory);
+      this.accessory.removeController?.(previousCamera.controller);
+      previousCamera.dispose();
     }
   }
 
@@ -63,7 +72,7 @@ class FermaxAccessory {
             Characteristic.LockTargetState,
             Characteristic.LockTargetState.SECURED,
           );
-        }, (this.platform.config.unlockResetSeconds ?? 10) * 1000);
+        }, (this.platform.config.unlockResetSeconds ?? DEFAULT_UNLOCK_RESET_SECONDS) * 1000);
       } catch {
         this.platform.log.error('Failed to open Fermax door');
         throw new HapStatusError(HAPStatus.SERVICE_COMMUNICATION_FAILURE);
@@ -91,4 +100,3 @@ class FermaxAccessory {
 }
 
 module.exports = FermaxAccessory;
-

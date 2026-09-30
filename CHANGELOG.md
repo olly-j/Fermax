@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.2.0-beta.2
+
+Configuration and documentation review; physical hardware validation is still pending.
+
+- Present connection-specific settings and keep advanced media controls out of the basic setup.
+- Remove the unused Firebase sender ID from the form and terminal wizard.
+- Align optional device/door selection, OAuth-pair requirements and defaults across setup and runtime.
+- Clarify preview activation, external media overrides and the limits of stream-copy bitrate controls.
+- Remove unsupported camera services from door-only setups, including cached accessories.
+- Verify the FFmpeg executable and remove leftover repository artifacts.
+- Record configuration field consumers and distinguish automated validation from deployment acceptance.
+
 ## 0.2.0-beta.1
 
 Hardware validation is pending. This version is available from GitHub, not npm.

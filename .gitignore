@@ -3,3 +3,5 @@ node_modules/
 coverage/
 *.tgz
 fermax-homebridge-config.json
+output/playwright/
+.playwright-cli/

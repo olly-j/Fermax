@@ -18,7 +18,7 @@ The suite covers authentication, safe selection, single-attempt commands, cache 
 A local package can be installed into the Pi's plugin directory:
 
 ```sh
-npm install /path/to/homebridge-fermax-blue-0.2.0-beta.1.tgz --omit=dev --legacy-peer-deps
+npm install /path/to/homebridge-fermax-blue-0.2.0-beta.2.tgz --omit=dev --legacy-peer-deps
 ```
 
 Restart Homebridge after installation. Keep the previous package and a private config/accessory backup for rollback. Old unscoped token files remain unused and can be removed from Homebridge storage after taking a private backup.
@@ -39,4 +39,4 @@ Before treating a beta installation as reliable:
 
 Use focused branches and pull requests. Preserve unrelated work, test failure paths, update the affected documentation and keep release claims tied to evidence. The recovery used the [AI Development Spine](https://github.com/olly-j/ai-development-spine) work loop: orient, define, implement, verify, reconcile and review. A formal template migration is a separate change.
 
-GitHub's `main` branch is the source-install target. Version `0.2.0-beta.1` denotes unvalidated hardware status; it is not an npm publication. Public releases and deployment are explicit owner decisions. Do not commit dependency folders, credentials, generated packages or personal machine paths.
+GitHub's `main` branch is the source-install target. Version `0.2.0-beta.2` denotes unvalidated hardware status; it is not an npm publication. Public releases and deployment are explicit owner decisions. Do not commit dependency folders, credentials, generated packages or personal machine paths.
