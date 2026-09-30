@@ -1,4 +1,3 @@
-const { HapStatusError, HAPStatus } = require('hap-nodejs');
 const FermaxCamera = require('./FermaxCamera');
 
 class FermaxAccessory {
@@ -43,6 +42,7 @@ class FermaxAccessory {
 
   async handleLockTarget(value) {
     const { Characteristic } = this.platform;
+    const { HapStatusError, HAPStatus } = this.platform.api.hap;
     if (value === Characteristic.LockTargetState.UNSECURED) {
       try {
         const ok = await this.platform.client.openDoor(this.deviceId, this.door);
@@ -53,7 +53,8 @@ class FermaxAccessory {
           Characteristic.LockCurrentState,
           Characteristic.LockCurrentState.UNSECURED,
         );
-        setTimeout(() => {
+        clearTimeout(this.resetTimer);
+        this.resetTimer = setTimeout(() => {
           this.lockService.updateCharacteristic(
             Characteristic.LockCurrentState,
             Characteristic.LockCurrentState.SECURED,
@@ -63,8 +64,8 @@ class FermaxAccessory {
             Characteristic.LockTargetState.SECURED,
           );
         }, (this.platform.config.unlockResetSeconds ?? 10) * 1000);
-      } catch (error) {
-        this.platform.log.error('Failed to open Fermax door', error);
+      } catch {
+        this.platform.log.error('Failed to open Fermax door');
         throw new HapStatusError(HAPStatus.SERVICE_COMMUNICATION_FAILURE);
       }
     } else {
@@ -73,6 +74,11 @@ class FermaxAccessory {
         Characteristic.LockCurrentState.SECURED,
       );
     }
+  }
+
+  dispose() {
+    clearTimeout(this.resetTimer);
+    this.camera?.dispose?.();
   }
 
   triggerDoorbell(_payload) {

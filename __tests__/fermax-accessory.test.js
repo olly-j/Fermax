@@ -1,8 +1,8 @@
 const FermaxAccessory = require('../src/FermaxAccessory');
-const { HAPStatus } = require('hap-nodejs');
 
 // Mock dependencies
 const mockPlatform = {
+    api: { hap: require('@homebridge/hap-nodejs') },
     log: {
         info: jest.fn(),
         error: jest.fn(),
